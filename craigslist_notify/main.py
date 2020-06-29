@@ -58,9 +58,6 @@ def termux_notification(listing: Listing):
     https://wiki.termux.com/wiki/Termux-notification
     """
 
-    print(listing)
-    return
-
     subprocess.call([
         'termux-notification',
         '--title', f'New \'{listing.query}\' listing in \'{listing.region}\'',
@@ -72,8 +69,7 @@ def termux_notification(listing: Listing):
 
 def filter_out_known_listings(s, r, q, listings) -> List[Listing]:
     current_ids = set(map(lambda l: l.id, listings))
-    known_ids = set(s[r][q])
-    new_ids = current_ids - known_ids
+    new_ids = current_ids - s[r][q]
     return list(filter(lambda x: x.id in new_ids, listings))
 
 
@@ -83,7 +79,7 @@ def notify_new_and_update_state(s, r, q):
 
     list(map(lambda l: termux_notification(l), new_listings))
 
-    s[r][q] = set(s[r][q]) | set(map(lambda l: l.id, new_listings))
+    s[r][q] |= set(map(lambda l: l.id, new_listings))
 
 
 def main():
@@ -96,6 +92,7 @@ def main():
             state[region] = defaultdict(set)
 
         for query in config[region]:
+            state[region][query] = set(state[region][query])
             notify_new_and_update_state(state, region, query)
 
     save_yaml(STATE_FILE, sanitize_state(state))
