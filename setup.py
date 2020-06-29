@@ -1,4 +1,3 @@
-
 from setuptools import setup
 
 setup(
@@ -11,6 +10,12 @@ setup(
     packages=["craigslist_notify"],
     include_package_data=True,
     entry_points={"console_scripts": "craigslist_notify=craigslist_notify.main:main"},
-    install_requires=[],
+    install_requires=[
+        "setuptools~=46.0.0",
+        "requests~=2.23.0",
+        "lxml~=4.5.0",
+        "beautifulsoup4~=4.8.2",
+        "PyYAML~=5.3.1",
+    ],
     license="GNU GPL 3.0",
 )
