@@ -6,6 +6,11 @@ Python bot for listing alerts
 $ pip install https://www.github.com/rwev/craigslist_notify/archive/master.zip
 ```
 
+## preparing android device
+```shell script
+$ pkg install termux-api openssl libxml2 libxslt
+```
+
 ## TODO
 - add other search params
 - HOWTO configure

@@ -30,14 +30,29 @@ def save_yaml(path, data):
 
 def sanitize_state(state_obj):
     state_obj = dict(state_obj)
-    for region in state_obj:
-        state_obj[region] = dict(state_obj[region])
-        for query in state_obj[region]:
-            state_obj[region][query] = list(state_obj[region][query])
+    for identifier in state_obj:
+        state_obj[identifier] = list(state_obj[identifier])
     return state_obj
 
 
-@dataclass
+@dataclass(frozen=True)
+class Search:
+    region: str
+    query: str
+    by: str
+    identifier: str
+
+
+def to_search_data(yaml_dict) -> Search:
+    return Search(
+        region=yaml_dict['region'],
+        query=yaml_dict['query'],
+        by=yaml_dict['by'],
+        identifier=''.join(sorted(yaml_dict.values()))
+    )
+
+
+@dataclass(frozen=True)
 class Listing:
     url: str
     id: int
@@ -46,11 +61,25 @@ class Listing:
     query: str
 
 
-def get_current_listings(r, q) -> List[Listing]:
-    res = requests.get(f'http://{r}.craigslist.org/search/sss?sort=rel&query={urllib.parse.quote(q)}').text
+BY_ROUTES = {
+    'all': 'sss',
+    'owner': 'sso',
+    'dealer': 'ssq'
+}
+
+
+def get_current_listings(search: Search) -> List[Listing]:
+    res = requests.get(
+        f'http://{search.region}.craigslist.org/search/{BY_ROUTES[search.by]}?sort=rel&query={urllib.parse.quote(search.query)}',
+    ).text
+
     soup = BeautifulSoup(res, "lxml")
     elements = soup.findAll('a', {'class': 'result-title'})
-    return [Listing(url=e['href'], id=e['data-id'], title=e.text, query=q, region=r) for e in elements]
+
+    return [
+        Listing(url=e['href'], id=e['data-id'], title=e.text, query=search.query, region=search.region)
+        for e in elements
+    ]
 
 
 def termux_notification(listing: Listing):
@@ -67,33 +96,36 @@ def termux_notification(listing: Listing):
     ])
 
 
-def filter_out_known_listings(s, r, q, listings) -> List[Listing]:
+def filter_out_known_listings(state, search: Search, listings: List[Listing]) -> List[Listing]:
     current_ids = set(map(lambda l: l.id, listings))
-    new_ids = current_ids - s[r][q]
+    new_ids = current_ids - state[search.identifier]
     return list(filter(lambda x: x.id in new_ids, listings))
 
 
-def notify_new_and_update_state(s, r, q):
-    current_listings = get_current_listings(r, q)
-    new_listings = filter_out_known_listings(s, r, q, current_listings)
+def notify_new_and_update_state(state, search: Search):
+    current_listings = get_current_listings(search)
+    new_listings = filter_out_known_listings(state, search, current_listings)
 
-    list(map(lambda l: termux_notification(l), new_listings))
+    for listing in new_listings:
+        termux_notification(listing)
 
-    s[r][q] |= set(map(lambda l: l.id, new_listings))
+    state[search.identifier] |= set(map(lambda l: l.id, new_listings))
 
 
 def main():
-    state = load_yaml(STATE_FILE) or defaultdict(lambda: defaultdict(set))
+    state = load_yaml(STATE_FILE) or defaultdict(set)
     config = load_yaml(CONFIG_FILE) or {}
 
-    for region in config:
+    for search_dict in config:
 
-        if region not in state:  # handle new query
-            state[region] = defaultdict(set)
+        search: Search = to_search_data(search_dict)
 
-        for query in config[region]:
-            state[region][query] = set(state[region][query])
-            notify_new_and_update_state(state, region, query)
+        if search.identifier in state:  # handle new query
+            state[search.identifier] = set(state[search.identifier])
+        else:
+            state[search.identifier] = set()
+
+        notify_new_and_update_state(state, search)
 
     save_yaml(STATE_FILE, sanitize_state(state))
 
