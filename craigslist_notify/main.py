@@ -68,20 +68,6 @@ BY_ROUTES = {
 }
 
 
-def get_current_listings(search: Search) -> List[Listing]:
-    res = requests.get(
-        f'http://{search.region}.craigslist.org/search/{BY_ROUTES[search.by]}?sort=rel&query={urllib.parse.quote(search.query)}',
-    ).text
-
-    soup = BeautifulSoup(res, "lxml")
-    elements = soup.findAll('a', {'class': 'result-title'})
-
-    return [
-        Listing(url=e['href'], id=e['data-id'], title=e.text, query=search.query, region=search.region)
-        for e in elements
-    ]
-
-
 def termux_notification(listing: Listing):
     """
     https://wiki.termux.com/wiki/Termux-notification
@@ -94,6 +80,31 @@ def termux_notification(listing: Listing):
         '--action', f'termux-open-url {listing.url}',
         '--group', 'craigslist_notify'
     ])
+
+
+def termux_schedule():
+    job_id = 2566843  # CLNOTIF
+    subprocess.call([
+        'termux-job-scheduler',
+        '--script', '$(which craigslist_notify)',
+        '--period-ms', '900000',
+        '--job-id', f'{job_id}',
+        '--persisted', 'true'
+    ])
+
+
+def get_current_listings(search: Search) -> List[Listing]:
+    res = requests.get(
+        f'http://{search.region}.craigslist.org/search/{BY_ROUTES[search.by]}?sort=rel&query={urllib.parse.quote(search.query)}',
+    ).text
+
+    soup = BeautifulSoup(res, "lxml")
+    elements = soup.findAll('a', {'class': 'result-title'})
+
+    return [
+        Listing(url=e['href'], id=e['data-id'], title=e.text, query=search.query, region=search.region)
+        for e in elements
+    ]
 
 
 def filter_out_known_listings(state, search: Search, listings: List[Listing]) -> List[Listing]:
@@ -128,6 +139,7 @@ def main():
         notify_new_and_update_state(state, search)
 
     save_yaml(STATE_FILE, sanitize_state(state))
+    termux_schedule()
 
 
 if __name__ == '__main__':
