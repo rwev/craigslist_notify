@@ -84,9 +84,10 @@ def termux_notification(listing: Listing):
 
 def termux_schedule():
     job_id = 2566843  # CLNOTIF
+    script = subprocess.check_output(['which', 'craigslist_notify']).strip().decode()
     subprocess.call([
         'termux-job-scheduler',
-        '--script', '$(which craigslist_notify)',
+        '--script', f'{script}',
         '--period-ms', '900000',
         '--job-id', f'{job_id}',
         '--persisted', 'true'
