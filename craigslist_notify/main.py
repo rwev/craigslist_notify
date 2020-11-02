@@ -83,7 +83,7 @@ def termux_notification(listing: Listing):
 
 
 def termux_schedule():
-    job_id = 2566843  # CLNOTIF
+    job_id = 2566843  """ CLNOTIF """
     script = subprocess.check_output(['which', 'craigslist_notify']).strip().decode()
     subprocess.call([
         'termux-job-scheduler',
@@ -132,7 +132,7 @@ def main():
 
         search: Search = to_search_data(search_dict)
 
-        if search.identifier in state:  # handle new query
+        if search.identifier in state:  """ handle new query """
             state[search.identifier] = set(state[search.identifier])
         else:
             state[search.identifier] = set()
